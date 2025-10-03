@@ -1,151 +1,120 @@
 import streamlit as st
 import requests
 from PIL import Image
-import time
-import json
 
 # --- Page Configuration ---
+# Use a wide layout for a more modern feel
 st.set_page_config(
-    page_title="LCN Terminal",
-    page_icon="🛰️",
-    layout="wide",
-    initial_sidebar_state="collapsed"
+    page_title="LandCoverNet",
+    page_icon="🗺️",
+    layout="centered",
 )
 
-# --- Custom CSS for the Hacker Vibe ---
+# --- Custom CSS for the Google Maps Vibe ---
 st.markdown("""
 <style>
-/* Main app background */
-body, .main {
-    background-color: #0d0208; /* Near-black background */
-    color: #00ff41; /* Hacker green text */
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-}
-
-/* Titles and Headers */
-h1, h2, h3 {
-    color: #00ff41; /* Hacker green */
-    text-shadow: 0 0 5px #00ff41;
-}
-
-/* File Uploader */
-.stFileUploader > label {
-    font-size: 1.2rem;
-    color: #00ff41;
-}
-.stFileUploader > div > div {
-    border: 1px dashed #00ff41;
-    background-color: #1a1a1a;
-}
-
-/* Buttons */
-.stButton>button {
-    border: 1px solid #00ff41;
-    background-color: transparent;
-    color: #00ff41;
-    padding: 10px 20px;
-    border-radius: 0; /* Sharp corners */
-}
-.stButton>button:hover {
-    background-color: rgba(0, 255, 65, 0.2);
-    color: #ffffff;
-    border-color: #00ff41;
-}
-
-/* Expander for JSON */
-.stExpander {
-    border: 1px solid #00ff41;
-    background-color: #1a1a1a;
-    border-radius: 0;
-}
-
-/* Progress bar / spinner */
-.stSpinner > div > div {
-    border-top-color: #00ff41;
-}
-
-/* Success/Info/Error boxes */
-.stAlert {
-    border: 1px solid #00ff41;
-    border-radius: 0;
-}
+    /* Main app background */
+    .main {
+        background-color: #f5f5f5; /* Light grey background */
+    }
+    /* Main content card */
+    .stApp > div:first-child > div:first-child > div:first-child {
+        padding: 2rem;
+        background-color: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    /* Title and Header styles */
+    h1 {
+        color: #333333;
+        font-family: 'sans-serif';
+    }
+    /* Button styles */
+    .stButton>button {
+        background-color: #1a73e8; /* Google's blue */
+        color: white;
+        border-radius: 8px;
+        border: none;
+        padding: 10px 20px;
+        font-weight: bold;
+    }
+    .stButton>button:hover {
+        background-color: #1b66c9;
+    }
+    /* File uploader style */
+    .stFileUploader label {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: #5f6368;
+    }
 </style>
 """, unsafe_allow_html=True)
-
 
 # --- API Configuration ---
 API_URL = "http://127.0.0.1:8000/predict"
 
 # --- UI Layout ---
 
-# ASCII Art Header
-st.code("""
-  _      _____ _   _   _    _   _ _____ _______ 
- | |    / ____| \ | | | |  | \ | |_   _|__   __|
- | |   | |    |  \| | | |  |  \| | | |    | |   
- | |   | |    | . ` | | |  | . ` | | |    | |   
- | |___| |____| |\  | | |__| |\  |_| |_   | |   
- |______\_____|_| \_|  \____/_| \_|_____|  |_|   
-                                              
- --- Land Cover Neural Network // GEOINT ANALYSIS TERMINAL ---
-""", language='text')
+# Header Section
+st.title("🗺️ LandCoverNet")
+st.markdown("An AI-powered tool to classify land cover from satellite imagery. Simply upload an image patch from the EuroSAT dataset, and the underlying ResNet model will predict its category.")
 
-st.header(">> Target Acquisition Module")
+st.markdown("---") # A nice separator
 
-# File uploader widget
+# File Uploader
 uploaded_file = st.file_uploader(
-    "Drag and drop target image here or browse files...", 
+    "Upload your image patch here",
     type=["jpg", "png", "tif", "tiff"]
 )
 
+# A dictionary to map class names to descriptive emojis for a friendly touch
+CLASS_EMOJIS = {
+    "AnnualCrop": "🌾", "Forest": "🌲", "HerbaceousVegetation": "🌿",
+    "Highway": "🛣️", "Industrial": "🏭", "Pasture": "🐄",
+    "PermanentCrop": "🍇", "Residential": "🏘️", "River": "💧", "SeaLake": "🌊"
+}
+
 if uploaded_file is not None:
-    col1, col2 = st.columns(2)
-    
+    # Use columns for a clean side-by-side layout
+    col1, col2 = st.columns([1, 1]) # Equal width columns
+
     with col1:
-        st.image(Image.open(uploaded_file), caption="TARGET IMAGE MATRIX", use_column_width=True)
+        # Display the uploaded image
+        image = Image.open(uploaded_file)
+        st.image(image, caption="Uploaded Image", use_column_width=True)
 
     with col2:
-        # Simulate a fake "analysis" log for dramatic effect
-        with st.spinner(''):
-            st.info(">> EXECUTING DEEP SCAN...")
-            time.sleep(1)
-            st.info(">> INITIALIZING CONNECTION TO INFERENCE SERVER...")
-            time.sleep(1)
-            st.info(">> TRANSMITTING IMAGE MATRIX [ENCRYPTED]...")
-            time.sleep(2)
-            st.info(">> AWAITING NEURAL NETWORK RESPONSE...")
-
-        # Send the file to the FastAPI backend
-        files = {"file": uploaded_file.getvalue()}
-        
-        try:
-            response = requests.post(API_URL, files=files)
+        # While waiting for the API, show a spinner
+        with st.spinner('Analyzing image...'):
+            files = {"file": uploaded_file.getvalue()}
             
-            if response.status_code == 200:
-                result = response.json()
-                class_name = result["predicted_class"]
-                confidence = result["confidence"]
+            try:
+                # Send request to the backend
+                response = requests.post(API_URL, files=files)
                 
-                st.success(">> ANALYSIS COMPLETE. SYSTEM OUTPUT:")
-                
-                # Display the result in a formatted code block
-                output_text = f"""
-                +----------------------------+
-                | DECODED PREDICTION         |
-                +----------------------------+
-                | Target Class..: {class_name.upper()}
-                | Confidence....: {confidence*100:.2f}%
-                +----------------------------+
-                """
-                st.code(output_text, language="text")
-
-                # Show the raw JSON in an expander
-                with st.expander(">> VIEW RAW TRANSMISSION LOG"):
-                    st.json(result)
+                if response.status_code == 200:
+                    result = response.json()
+                    class_name = result["predicted_class"]
+                    confidence = result["confidence"]
                     
-            else:
-                st.error(f">> SERVER ERROR [CODE: {response.status_code}]")
-                st.json(response.json())
+                    # Display the results in a clean format
+                    st.subheader("Analysis Result")
+                    
+                    emoji = CLASS_EMOJIS.get(class_name, "❓")
+                    st.markdown(f"### {emoji} {class_name}")
+                    
+                    st.metric(label="Confidence", value=f"{confidence*100:.2f}%")
+                    
+                    # A subtle success message
+                    st.success("Classification successful!")
+                    
+                else:
+                    st.error(f"Error from server: {response.status_code}")
+                    st.write(response.text)
 
-        except requests.exceptions.ConnectionError:
-            st.error(">> FATAL ERROR: CONNECTION TO INFERENCE SERVER FAILED. ENSURE BACKEND IS ONLINE.")
+            except requests.exceptions.ConnectionError:
+                st.error("Connection Error: Could not connect to the API server. Please ensure the backend is running.")
+
+# A simple footer
+st.markdown("---")
+st.markdown("Powered by PyTorch, FastAPI, and Streamlit.")
