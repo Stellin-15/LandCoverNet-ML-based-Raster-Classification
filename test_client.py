@@ -1,4 +1,3 @@
-# test_client.py
 import requests
 
 # URL of your running API
