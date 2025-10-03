@@ -1,48 +1,73 @@
 import streamlit as st
 import requests
 from PIL import Image
-import io
+import time
+import json
 
 # --- Page Configuration ---
-# This must be the first Streamlit command in your script.
 st.set_page_config(
-    page_title="LandCoverNet Explorer",
-    page_icon="🌍", # A nice globe emoji
-    layout="centered" # Keep the layout clean and centered
+    page_title="LCN Terminal",
+    page_icon="🛰️",
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
-# --- Custom CSS for the "Earthy Vibe" ---
-# We'll inject some custom CSS to style our app.
-def local_css(file_name):
-    with open(file_name) as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-
-# You can create a style.css file, or for simplicity, we can embed it.
+# --- Custom CSS for the Hacker Vibe ---
 st.markdown("""
 <style>
 /* Main app background */
-.main {
-    background-color: #F5F5DC; /* A soft beige color */
+body, .main {
+    background-color: #0d0208; /* Near-black background */
+    color: #00ff41; /* Hacker green text */
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
 }
-/* Title style */
-h1 {
-    color: #4B5320; /* Army Green */
-    font-family: 'Garamond', serif;
+
+/* Titles and Headers */
+h1, h2, h3 {
+    color: #00ff41; /* Hacker green */
+    text-shadow: 0 0 5px #00ff41;
 }
-/* Subheader and text style */
-.stMarkdown, .stFileUploader label {
-    color: #3B444B; /* A dark charcoal color */
+
+/* File Uploader */
+.stFileUploader > label {
+    font-size: 1.2rem;
+    color: #00ff41;
 }
-/* Button style */
+.stFileUploader > div > div {
+    border: 1px dashed #00ff41;
+    background-color: #1a1a1a;
+}
+
+/* Buttons */
 .stButton>button {
-    background-color: #556B2F; /* Dark Olive Green */
-    color: white;
-    border-radius: 8px;
-    border: none;
+    border: 1px solid #00ff41;
+    background-color: transparent;
+    color: #00ff41;
+    padding: 10px 20px;
+    border-radius: 0; /* Sharp corners */
 }
 .stButton>button:hover {
-    background-color: #6B8E23; /* Olive Drab */
-    color: white;
+    background-color: rgba(0, 255, 65, 0.2);
+    color: #ffffff;
+    border-color: #00ff41;
+}
+
+/* Expander for JSON */
+.stExpander {
+    border: 1px solid #00ff41;
+    background-color: #1a1a1a;
+    border-radius: 0;
+}
+
+/* Progress bar / spinner */
+.stSpinner > div > div {
+    border-top-color: #00ff41;
+}
+
+/* Success/Info/Error boxes */
+.stAlert {
+    border: 1px solid #00ff41;
+    border-radius: 0;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -51,35 +76,46 @@ h1 {
 # --- API Configuration ---
 API_URL = "http://127.0.0.1:8000/predict"
 
+# --- UI Layout ---
 
-# --- UI Elements ---
+# ASCII Art Header
+st.code("""
+  _      _____ _   _   _    _   _ _____ _______ 
+ | |    / ____| \ | | | |  | \ | |_   _|__   __|
+ | |   | |    |  \| | | |  |  \| | | |    | |   
+ | |   | |    | . ` | | |  | . ` | | |    | |   
+ | |___| |____| |\  | | |__| |\  |_| |_   | |   
+ |______\_____|_| \_|  \____/_| \_|_____|  |_|   
+                                              
+ --- Land Cover Neural Network // GEOINT ANALYSIS TERMINAL ---
+""", language='text')
 
-st.title("🌍 LandCoverNet Explorer")
-st.write("Upload a satellite image patch and let our AI tell you what it sees! This tool uses a ResNet18 model to classify land cover from EuroSAT imagery.")
+st.header(">> Target Acquisition Module")
 
 # File uploader widget
 uploaded_file = st.file_uploader(
-    "Choose an image...", 
+    "Drag and drop target image here or browse files...", 
     type=["jpg", "png", "tif", "tiff"]
 )
 
-# A dictionary to map class names to descriptive emojis
-CLASS_EMOJIS = {
-    "AnnualCrop": "🌾", "Forest": "🌲", "HerbaceousVegetation": "🌿",
-    "Highway": "🛣️", "Industrial": "🏭", "Pasture": "🐄",
-    "PermanentCrop": "🍇", "Residential": "🏘️", "River": "💧", "SeaLake": "🌊"
-}
-
 if uploaded_file is not None:
-    # Display the uploaded image
-    image = Image.open(uploaded_file)
-    st.image(image, caption="Your Uploaded Image", use_column_width=True)
+    col1, col2 = st.columns(2)
     
-    st.write("") # Add a little space
-    st.write("Classifying...")
+    with col1:
+        st.image(Image.open(uploaded_file), caption="TARGET IMAGE MATRIX", use_column_width=True)
 
-    # When the user uploads a file, send it to the FastAPI backend
-    with st.spinner('AI is thinking...'):
+    with col2:
+        # Simulate a fake "analysis" log for dramatic effect
+        with st.spinner(''):
+            st.info(">> EXECUTING DEEP SCAN...")
+            time.sleep(1)
+            st.info(">> INITIALIZING CONNECTION TO INFERENCE SERVER...")
+            time.sleep(1)
+            st.info(">> TRANSMITTING IMAGE MATRIX [ENCRYPTED]...")
+            time.sleep(2)
+            st.info(">> AWAITING NEURAL NETWORK RESPONSE...")
+
+        # Send the file to the FastAPI backend
         files = {"file": uploaded_file.getvalue()}
         
         try:
@@ -90,15 +126,26 @@ if uploaded_file is not None:
                 class_name = result["predicted_class"]
                 confidence = result["confidence"]
                 
-                # Display the result with a nice big emoji
-                emoji = CLASS_EMOJIS.get(class_name, "❓")
-                st.success(f"## {emoji} Prediction: **{class_name}**")
+                st.success(">> ANALYSIS COMPLETE. SYSTEM OUTPUT:")
                 
-                # Use a metric to display confidence nicely
-                st.metric(label="Confidence", value=f"{confidence*100:.2f}%")
-                
+                # Display the result in a formatted code block
+                output_text = f"""
+                +----------------------------+
+                | DECODED PREDICTION         |
+                +----------------------------+
+                | Target Class..: {class_name.upper()}
+                | Confidence....: {confidence*100:.2f}%
+                +----------------------------+
+                """
+                st.code(output_text, language="text")
+
+                # Show the raw JSON in an expander
+                with st.expander(">> VIEW RAW TRANSMISSION LOG"):
+                    st.json(result)
+                    
             else:
-                st.error(f"Error from server: {response.status_code} - {response.text}")
+                st.error(f">> SERVER ERROR [CODE: {response.status_code}]")
+                st.json(response.json())
 
         except requests.exceptions.ConnectionError:
-            st.error("Connection Error: Could not connect to the API. Is the backend server (main.py) running?")
+            st.error(">> FATAL ERROR: CONNECTION TO INFERENCE SERVER FAILED. ENSURE BACKEND IS ONLINE.")
